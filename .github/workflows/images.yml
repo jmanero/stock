@@ -38,7 +38,7 @@ jobs:
         containerfiles: ${{ matrix.type }}/${{ matrix.os }}/Containerfile
 
     - name: Push Utility Image
-      id: push
+      id: push-util
       uses: redhat-actions/push-to-registry@v2
       with:
         image: ${{ steps.build-util.outputs.image }}
