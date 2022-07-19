@@ -1,0 +1,29 @@
+FROM registry.fedoraproject.org/fedora-minimal:36 AS linux
+
+## Build a minimal root filesystem
+RUN mkdir -p /build/etc /build/usr/{bin,lib,lib64,libexec,sbin}
+RUN cp /etc/group /etc/passwd /build/etc/
+RUN cp /usr/lib64/libc.so.6 /usr/lib64/libpthread.so.0 /usr/lib64/libtinfo.so.6.2 /usr/lib64/ld-linux-x86-64.so.2 /build/usr/lib64/
+RUN touch /build/etc/ld.so.conf
+
+## Rebuild linking configuration and symlinks
+RUN ldconfig -r /build -v
+
+## Link root directories to /usr/ subdirectories
+RUN ln -s /usr/bin /build/bin
+RUN ln -s /usr/lib /build/lib
+RUN ln -s /usr/lib64 /build/lib64
+RUN ln -s /usr/sbin /build/sbin
+
+## stock-util:go-fc36 :: Includes bash, ldd, and ldconfig for debugging in a scratch environment
+FROM scratch AS util
+COPY --from=linux /build /
+COPY --from=linux /usr/bin/bash /usr/bin/ldd /usr/bin/sh /usr/bin/
+COPY --from=linux /usr/sbin/ldconfig /usr/sbin/
+
+## Verify that bash works
+RUN bash --version
+
+## stock:go-fc36 :: Just the needful libs for Teh Golangs
+FROM scratch
+COPY --from=linux /build /

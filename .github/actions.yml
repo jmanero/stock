@@ -1,0 +1,58 @@
+name: Container Images
+on: [ push ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        type: [ 'go' ]
+        os: [ 'fc36' ]
+
+    name: Build and Push Images
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build Utility Image
+      id: build-util
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: ghcr.io/jmanero/stock-util
+        tags: ${{ matrix.type }}-${{ matrix.os }} ${{ matrix.type }}-${{ matrix.os }}-${{ github.sha }}
+        context: ${{ matrix.type }}/${{ matrix.os }}
+        containerfiles: ${{ matrix.type }}/${{ matrix.os }}/Containerfile
+        extra-args: --target util
+
+    - name: Build Image
+      id: build
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: ghcr.io/jmanero/stock
+        tags: ${{ matrix.type }}-${{ matrix.os }} ${{ matrix.type }}-${{ matrix.os }}-${{ github.sha }}
+        context: ${{ matrix.type }}/${{ matrix.os }}
+        containerfiles: ${{ matrix.type }}/${{ matrix.os }}/Containerfile
+
+    - name: Push Utility Image
+      id: push
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build-util.outputs.image }}
+        tags: ${{ steps.build-util.outputs.tags }}
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push Image
+      id: push
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build.outputs.image }}
+        tags: ${{ steps.build.outputs.tags }}
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
